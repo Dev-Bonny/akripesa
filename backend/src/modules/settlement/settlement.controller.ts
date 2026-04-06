@@ -2,6 +2,9 @@
 import { Request, Response, NextFunction } from 'express';
 import * as SettlementService from './settlement.service';
 import { sendSuccess } from '../../utils/apiResponse';
+import { AppError } from '../../middleware/errorHandler.middleware';
+import { PayoutStatus, Investment } from '../../models/Investment.model';
+import { payoutQueue } from '../../jobs/queues';
 
 export const triggerSettlement = async (
   req: Request,

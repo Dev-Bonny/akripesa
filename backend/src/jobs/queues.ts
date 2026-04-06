@@ -1,8 +1,23 @@
 import { Queue } from 'bullmq';
 import { redisConnection } from '../config/redis';
-import { PayoutJobData, DeadLetterJobData } from './queues'; // existing types
 
-// ─── Dispatch Job Payload ─────────────────────────────────────────────────────
+// ─── Job Payload Interfaces ───────────────────────────────────────────────────
+
+export interface PayoutJobData {
+  investmentId: string;
+  campaignId: string;
+  investorPhoneNumber: string;
+  payoutAmountKes: number;
+  actualProfitKes: number;
+  remarks: string;
+}
+
+export interface DeadLetterJobData {
+  investmentId: string;
+  campaignId: string;
+  originalError: string;
+  exhaustedAt: string;
+}
 
 export interface DispatchJobData {
   orderId: string;
@@ -14,8 +29,7 @@ export interface DispatchJobData {
   previousDriverId?: string;           // Last driver offered (for timeout tracking)
 }
 
-// Re-export existing types so import paths don't change
-export type { PayoutJobData, DeadLetterJobData };
+// ─── Queues ───────────────────────────────────────────────────────────────────
 
 export const payoutQueue = new Queue<PayoutJobData>('investor-payouts', {
   connection: redisConnection,
@@ -52,6 +66,7 @@ export const dispatchQueue = new Queue<DispatchJobData>('cascading-dispatch', {
 });
 
 dispatchQueue.on('error', (err) => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { logger } = require('../utils/logger');
   logger.error('DispatchQueue error:', err);
 });

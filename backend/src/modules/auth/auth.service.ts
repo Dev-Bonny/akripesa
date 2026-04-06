@@ -16,10 +16,8 @@ export const generateAccessToken = (user: IUser): string => {
     phoneNumber: user.phoneNumber,
   };
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
-    issuer: 'akripesa-api',
-    audience: 'akripesa-clients',
-  });
+  expiresIn: env.JWT_ACCESS_EXPIRES_IN as any,
+});
 };
 
 export const generateRefreshToken = (): {

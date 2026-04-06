@@ -1,5 +1,7 @@
 import { Namespace, Server, Socket } from 'socket.io';
 import { UserRole } from '../../models/User.model';
+import { Order, OrderStatus } from '../../models/Order.model'; // <-- Hoisted to top
+import { reDispatchOrder } from '../../modules/dispatch/dispatch.service'; // <-- Hoisted and fixed path!
 import { SocketUser, VendorOrderPing } from '../socket.types';
 import { logger } from '../../utils/logger';
 
@@ -12,12 +14,12 @@ let vendorNamespace: Namespace | null = null;
  * Each vendor joins their own private room on connection.
  *
  * Events (server → client):
- *   order:ping    — new B2C order requires vendor confirmation
- *   order:expired — order timed out without vendor response
+ * order:ping    — new B2C order requires vendor confirmation
+ * order:expired — order timed out without vendor response
  *
  * Events (client → server):
- *   order:accept  — vendor confirms they will pack the order
- *   order:decline — vendor cannot fulfill (triggers re-dispatch to next vendor)
+ * order:accept  — vendor confirms they will pack the order
+ * order:decline — vendor cannot fulfill (triggers re-dispatch to next vendor)
  */
 export const registerVendorNamespace = (io: Server): void => {
   vendorNamespace = io.of('/vendor');
@@ -40,7 +42,6 @@ export const registerVendorNamespace = (io: Server): void => {
 
     socket.on('order:accept', async (payload: { orderId: string; estimatedPrepMinutes: number }) => {
       try {
-        const { Order, OrderStatus } = await import('../../models/Order.model');
         await Order.findByIdAndUpdate(payload.orderId, {
           status: OrderStatus.VENDOR_PREPPING,
         });
@@ -57,7 +58,6 @@ export const registerVendorNamespace = (io: Server): void => {
     socket.on('order:decline', async (payload: { orderId: string }) => {
       try {
         // Trigger re-dispatch logic (Sprint 4 dispatch service)
-        const { reDispatchOrder } = await import('../modules/dispatch/dispatch.service');
         await reDispatchOrder(payload.orderId, user.userId);
         socket.emit('order:declined', { orderId: payload.orderId });
       } catch (err) {

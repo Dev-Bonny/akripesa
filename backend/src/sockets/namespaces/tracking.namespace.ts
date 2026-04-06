@@ -1,6 +1,6 @@
 import { Namespace, Server, Socket } from 'socket.io';
 import { Order, OrderStatus } from '../../models/Order.model';
-import { User } from '../../models/User.model';
+import { User, UserRole } from '../../models/User.model'; // <-- Added UserRole here
 import { canJoinTrackingRoom } from '../socket.auth.middleware';
 import { SocketUser, DriverLocationUpdate, TrackingRoomUpdate } from '../socket.types';
 import { logger } from '../../utils/logger';
@@ -12,12 +12,12 @@ import { logger } from '../../utils/logger';
  * Only the assigned driver (emits location) and the buyer/admin (receive) join.
  *
  * Events (server → client):
- *   tracking:update  — live driver GPS coordinates
- *   tracking:arrived — driver confirmed at pickup or delivery
+ * tracking:update  — live driver GPS coordinates
+ * tracking:arrived — driver confirmed at pickup or delivery
  *
  * Events (client → server):
- *   location:update  — driver sends GPS coords (drivers only)
- *   room:join        — buyer/admin requests to join order tracking room
+ * location:update  — driver sends GPS coords (drivers only)
+ * room:join        — buyer/admin requests to join order tracking room
  */
 export const registerTrackingNamespace = (io: Server): void => {
   const tracking: Namespace = io.of('/tracking');
@@ -86,7 +86,6 @@ export const registerTrackingNamespace = (io: Server): void => {
     socket.on('location:update', async (payload: DriverLocationUpdate) => {
       try {
         // Only drivers may emit location updates
-        const { UserRole } = await import('../../models/User.model');
         if (user.role !== UserRole.TRANSPORTER) {
           socket.emit('error', {
             message: 'Only drivers may emit location updates.',

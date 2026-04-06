@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
-import { UserRole, IUser } from '../models/User.model';
+import { UserRole } from '../models/User.model';
 import { AppError } from './errorHandler.middleware';
 
 // Augment Express Request to carry the authenticated user

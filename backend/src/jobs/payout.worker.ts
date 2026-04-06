@@ -1,14 +1,11 @@
 import { Worker, Job, UnrecoverableError } from 'bullmq';
-import mongoose from 'mongoose';
 import { redisSubscriberConnection } from '../config/redis';
 import { darajaClient } from '../modules/daraja/daraja.client';
 import {
   Investment,
-  InvestmentStatus,
   PayoutStatus,
 } from '../models/Investment.model';
-import { LPOCampaign, CampaignStatus } from '../models/LPOCampaign.model';
-import { User } from '../models/User.model';
+import { LPOCampaign } from '../models/LPOCampaign.model';
 import { deadLetterQueue, PayoutJobData, DeadLetterJobData } from './queues';
 import { logger } from '../utils/logger';
 

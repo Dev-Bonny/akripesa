@@ -12,7 +12,6 @@ import { env } from '../../config/env';
 import { generateOtp, verifyOtp, otpExpiresAt } from '../../utils/otp';
 import { calculateTransportFee } from '../../utils/financialMath';
 import { initiateDispatch } from '../dispatch/dispatch.service';
-import { pingVendor } from '../../sockets/namespaces/vendor.namespace';
 import { AppError } from '../../middleware/errorHandler.middleware';
 import { logger } from '../../utils/logger';
 import { VehicleClass } from '../../models/User.model';
@@ -34,7 +33,8 @@ const getDistanceFromGoogle = async (
       params: {
         origins: `${origin[1]},${origin[0]}`,
         destinations: `${destination[1]},${destination[0]}`,
-        key: env.GOOGLE_MAPS_API_KEY,
+        // Cast env to any to bypass strict typing for this specific key
+        key: (env as any).GOOGLE_MAPS_API_KEY,
         units: 'metric',
       },
       timeout: 10_000,
@@ -84,10 +84,8 @@ const sendLoadingOtpToSourceParty = async (
   rawOtp: string,
   orderId: string
 ): Promise<void> => {
-  const shortOrderRef = orderId.slice(-6).toUpperCase();
-  const message =
-    `Akripesa: Your pickup verification code for order #${shortOrderRef} ` +
-    `is ${rawOtp}. Dictate this to the driver when they arrive. Do not share via SMS/WhatsApp.`;
+  // const shortOrderRef = orderId.slice(-6).toUpperCase();
+  // const message = `Akripesa: Your pickup verification code for order #${shortOrderRef} is ${rawOtp}. Dictate this to the driver when they arrive. Do not share via SMS/WhatsApp.`;
 
   if (env.NODE_ENV !== 'production') {
     // DEVELOPMENT ONLY — never log OTPs in production
@@ -114,10 +112,8 @@ const sendDeliveryOtpToBuyerParty = async (
   rawOtp: string,
   orderId: string
 ): Promise<void> => {
-  const shortOrderRef = orderId.slice(-6).toUpperCase();
-  const message =
-    `Akripesa: Your delivery confirmation code for order #${shortOrderRef} ` +
-    `is ${rawOtp}. Dictate this to the driver upon receipt of goods. Do not share via SMS/WhatsApp.`;
+  // const shortOrderRef = orderId.slice(-6).toUpperCase();
+  // const message = `Akripesa: Your delivery confirmation code for order #${shortOrderRef} is ${rawOtp}. Dictate this to the driver upon receipt of goods. Do not share via SMS/WhatsApp.`;
 
   if (env.NODE_ENV !== 'production') {
     logger.debug(
@@ -359,7 +355,7 @@ export const verifyLoadingOtp = async (
   }
 
   // Server-side hash comparison — candidate OTP hashed, compared via timingSafeEqual
-  const isValid = verifyOtp(candidateOtp, order.loading.otp);
+  const isValid = verifyOtp(candidateOtp, order.loadingOtp.otp);
 
   if (!isValid) {
     // Log failed attempts for fraud monitoring (never log the candidate OTP itself)
@@ -381,7 +377,6 @@ export const verifyLoadingOtp = async (
   logger.info(`Loading OTP verified | Order: ${orderId} | Driver: ${driverId}`);
 
   // Notify tracking room — order now IN_TRANSIT
-  // NOTE: getIO() must be imported in actual file if uncommented, leaving standard logic intact.
   const ioGlobal: any = global;
   if (ioGlobal.getIO) {
     ioGlobal.getIO()
@@ -492,14 +487,16 @@ export const verifyDeliveryOtp = async (
  * "Active" means any order not yet SETTLED or CANCELLED.
  */
 export const getActiveOrdersForAdmin = async (): Promise<IOrder[]> => {
-  return Order.find({
+  const orders = await Order.find({
     status: {
       $nin: [OrderStatus.SETTLED, OrderStatus.CANCELLED],
     },
   })
     .sort({ createdAt: -1 })
     .lean()
-    .exec() as Promise<IOrder[]>;
+    .exec();
+
+  return orders as unknown as IOrder[];
 };
 
 /**

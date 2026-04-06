@@ -69,7 +69,7 @@ export const calculateInvestorPayouts = (
  */
 export const validateSettlementViability = (
   totalSettledAmountKes: number,
-  totalFundedAmountKes: number,
+  _totalFundedAmountKes: number,
   totalInvestorPayoutsKes: number,
   farmerPaymentsKes: number,
   transportFeesKes: number

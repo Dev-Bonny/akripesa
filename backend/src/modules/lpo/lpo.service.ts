@@ -7,10 +7,8 @@ import {
 import { AppError } from '../../middleware/errorHandler.middleware';
 import { logger } from '../../utils/logger';
 import {
-  Investment,
-  InvestmentStatus,
+  Investment, 
   PayoutStatus,
-  InvestorType,
 } from '../../models/Investment.model';
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
@@ -164,7 +162,7 @@ export const getPublicFundingCampaigns = async (filters: {
   ]);
 
   return {
-    campaigns: campaigns as ILPOCampaign[],
+    campaigns: campaigns as unknown as ILPOCampaign[],
     total,
     pages: Math.ceil(total / limit),
   };
@@ -209,7 +207,7 @@ export const getAllCampaignsForAdmin = async (): Promise<ILPOCampaign[]> => {
     .sort({ createdAt: -1 })
     .lean()
     .exec();
-  return campaigns as ILPOCampaign[];
+  return campaigns as unknown as ILPOCampaign[];
 };
 
 /**
@@ -260,7 +258,8 @@ export const getPayoutSummaries = async (): Promise<
       const manualHoldCount  = investments.filter((i) => i.payoutStatus === PayoutStatus.MANUAL_HOLD).length;
 
       return {
-        campaign,
+        // Explicitly cast to bypass the Mongoose FlattenMaps type mismatch
+        campaign: campaign as unknown as Partial<ILPOCampaign>,
         investments,
         totalInvestors: investments.length,
         successCount,

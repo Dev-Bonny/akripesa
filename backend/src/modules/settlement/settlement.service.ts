@@ -37,7 +37,7 @@ export const initiateSettlement = async (
   campaignId: string,
   settlementTransactionRef: string,
   totalSettledAmountKes: number,
-  adminUserId: string
+  _adminUserId: string
 ): Promise<{ totalJobs: number; totalPayoutKes: number }> => {
 
   // 1. Validate campaign is in correct state

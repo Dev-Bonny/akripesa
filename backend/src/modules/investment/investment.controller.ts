@@ -50,7 +50,7 @@ export const getMyPortfolio = async (
  * Admin: Fetch all investments currently stuck in MANUAL_HOLD.
  */
 export const getManualHoldInvestments = async (
-  req: Request,
+  _req: Request, // <-- FIXED: Added underscore to bypass unused variable check
   res: Response,
   next: NextFunction
 ): Promise<void> => {

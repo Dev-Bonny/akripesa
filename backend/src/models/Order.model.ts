@@ -17,7 +17,8 @@ export enum OrderStatus {
   DELIVERED = 'DELIVERED',               // OTP 2 confirmed (unloaded at dest)
   DISPUTED = 'DISPUTED',                 // Flagged — requires admin review
   CANCELLED = 'CANCELLED',
-  SETTLED = 'SETTLED',                   // All parties paid out
+  SETTLED = 'SETTLED',  
+  AWAITING_DRIVER = 'AWAITING_DRIVER',                 // All parties paid out
 }
 
 // ─── Sub-document Interfaces ──────────────────────────────────────────────────

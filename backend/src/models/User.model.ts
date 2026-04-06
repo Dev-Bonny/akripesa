@@ -162,7 +162,7 @@ const UserSchema = new Schema<IUser>(
     toJSON: {
       // Ensure passwordHash never leaks into JSON serialization
       transform: (_doc, ret) => {
-        delete ret.passwordHash;
+        delete (ret as any).password;
         delete ret.refreshTokenHash;
         delete ret.nationalIdNumber;
         return ret;

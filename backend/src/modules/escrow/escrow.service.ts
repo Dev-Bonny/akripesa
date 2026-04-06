@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import {
   Investment,
   InvestmentStatus,
-  PayoutStatus,
 } from '../../models/Investment.model';
 import {
   LPOCampaign,

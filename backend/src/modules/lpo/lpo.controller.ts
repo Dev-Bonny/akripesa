@@ -90,7 +90,7 @@ export const updateCampaign = async (
  * Returns all campaigns with internal data for the Underwriting Hub.
  */
 export const getAllCampaignsForAdmin = async (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -107,7 +107,7 @@ export const getAllCampaignsForAdmin = async (
  * Returns per-campaign payout queue data for the DLQ Monitor.
  */
 export const getPayoutSummaries = async (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {

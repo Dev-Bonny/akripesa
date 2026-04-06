@@ -73,7 +73,7 @@ export const verifyDelivery = async (
 // ─── NEW ADMIN CONTROLLERS ADDED BELOW ────────────────────────────────────────
 
 export const getActiveOrders = async (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {

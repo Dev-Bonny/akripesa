@@ -33,7 +33,6 @@ export interface PledgeInvestmentDto {
  * Currently implementing: YES top-ups (multiple investments per investor per campaign).
  * Change the ALLOW_TOPUPS constant below to switch behavior.
  */
-const ALLOW_TOPUPS = true; // ← Flip to true if top-ups are approved
 
 export const pledgeInvestment = async (
   dto: PledgeInvestmentDto,
@@ -137,4 +136,15 @@ export const getInvestorPortfolio = async (
     .exec();
 };
 
-// ──
+/**
+ * Admin: Fetch all investments currently stuck in MANUAL_HOLD for the DLQ.
+ */
+export const getManualHoldInvestments = async () => {
+  const investments = await Investment.find({ payoutStatus: PayoutStatus.MANUAL_HOLD })
+    .populate('investorId', 'fullName phoneNumber')
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+
+  return investments as unknown as any[]; 
+};
