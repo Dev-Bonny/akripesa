@@ -67,7 +67,8 @@ app.use('/api/v1/auth',                    authLimiter, authRoutes);
 app.use('/api/v1/daraja',                  darajaRoutes);
 
 // Investments MUST come before campaigns — more specific prefix first
-app.use('/api/v1/investments', investmentRoutes);
+// ✅ FIX: Add /campaigns to the mount path
+app.use('/api/v1/campaigns/investments', investmentRoutes);
 
 // Campaign sub-feature routers — all mounted under /api/v1/campaigns
 // Each router owns its own path segment after the mount point

@@ -30,7 +30,6 @@ export const LogisticsMap = ({ orders, selectedOrderId }: Props) => {
     // Dynamic import — Leaflet only runs in the browser
     const initMap = async () => {
       const L = (await import('leaflet')).default;
-      await import('leaflet/dist/leaflet.css');
 
       if (!mapRef.current || mapInstance.current) return;
 

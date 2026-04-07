@@ -18,16 +18,18 @@ const envSchema = z.object({
   DARAJA_B2C_SECURITY_CREDENTIAL: z.string(),
   DARAJA_ENVIRONMENT: z.enum(['sandbox', 'production']),
   
-  // ---> ADD THESE TWO NEW LINES RIGHT HERE <---
   API_BASE_URL: z.string().url(),
   DARAJA_CALLBACK_SECRET: z.string(),
-  // -------------------------------------------
 
   AFRICAS_TALKING_API_KEY: z.string(),
   AFRICAS_TALKING_USERNAME: z.string(),
   BANK_API_BASE_URL: z.string().url(),
   BANK_API_KEY: z.string(),
   PLATFORM_SYSTEM_USER_ID: z.string(), 
+  
+  // ---> ADDED GOOGLE OAUTH VARIABLES HERE <---
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string(),
 });
 
 const parsed = envSchema.safeParse(process.env);

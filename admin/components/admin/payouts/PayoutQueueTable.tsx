@@ -7,8 +7,22 @@ import { formatKes, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
+// 1. Grab the base investment type from your summary
+type BaseInvestment = CampaignPayoutSummary['investments'][0];
+
+// 2. Add the missing paidOutAt property to it
+type QueuedInvestment = BaseInvestment & {
+  paidOutAt?: string | Date | null;
+};
+
+// 3. Override the original summary type to use our new QueuedInvestment
+type ExtendedSummary = Omit<CampaignPayoutSummary, 'investments'> & {
+  investments: QueuedInvestment[];
+};
+
+// 4. Update the props!
 interface Props {
-  summaries: CampaignPayoutSummary[];
+  summaries: ExtendedSummary[];
 }
 
 export const PayoutQueueTable = ({ summaries }: Props) => {

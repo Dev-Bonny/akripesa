@@ -16,7 +16,7 @@ export default function AdminLayout({
   const accessToken = cookieStore.get('akripesa_access_token');
 
   if (!accessToken) {
-    //redirect('/login');
+    redirect('/login');
   }
 
   return (
