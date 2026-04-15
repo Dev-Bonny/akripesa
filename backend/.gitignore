@@ -58,3 +58,6 @@ Thumbs.db
 .npm/
 .yarn/
 .eslintcache
+
+# Database seed scripts
+seed-transporter.mjs
