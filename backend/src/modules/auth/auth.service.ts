@@ -1,3 +1,6 @@
+import { OtpSession } from '../../models/OtpSession.model';
+import { atClient } from '../africastalking/at.client';
+import { RequestOtpDto, VerifyOtpDto } from './auth.validation';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -150,4 +153,164 @@ export const logoutUser = async (userId: string): Promise<void> => {
     $unset: { refreshTokenHash: '' },
   });
   logger.info(`User logged out: ${userId}`);
+};
+
+const OTP_TTL_MINUTES = 10;
+const MAX_OTP_ATTEMPTS = 3;
+
+/**
+ * Generates a cryptographically secure 6-digit OTP.
+ * Uses crypto.randomInt (CSPRNG) — not Math.random().
+ */
+const generateSixDigitOtp = (): { rawOtp: string; hashedOtp: string } => {
+  const raw       = crypto.randomInt(100000, 1000000); // [100000, 999999]
+  const rawOtp    = raw.toString();
+  const hashedOtp = crypto
+    .createHash('sha256')
+    .update(rawOtp)
+    .digest('hex');
+  return { rawOtp, hashedOtp };
+};
+
+/**
+ * Step 1 — Request OTP.
+ *
+ * Validates that the user exists with the correct role, generates a
+ * 6-digit OTP, stores the hash in OtpSession, and sends SMS.
+ *
+ * Rate limiting: if an unexpired, unused session already exists for
+ * this phone, we invalidate it and issue a fresh one. This prevents
+ * OTP farming while allowing legitimate re-requests.
+ */
+export const requestOtp = async (dto: RequestOtpDto): Promise<void> => {
+  // 1. Verify user exists with the claimed role
+  const user = await User.findOne({
+    phoneNumber: dto.phoneNumber,
+    role:        dto.role,
+    isActive:    true,
+  }).exec();
+
+  if (!user) {
+    // Return generic message — do not reveal whether phone exists
+    throw new AppError(
+      'If this number is registered, an OTP will be sent.',
+      200, // Intentional 200 — prevents phone enumeration
+      'OTP_REQUESTED'
+    );
+  }
+
+  // 2. Invalidate any existing active OTP session for this phone
+  await OtpSession.updateMany(
+    { phoneNumber: dto.phoneNumber, isUsed: false },
+    { isUsed: true }
+  );
+
+  // 3. Generate OTP
+  const { rawOtp, hashedOtp } = generateSixDigitOtp();
+
+  // 4. Persist hashed OTP session
+  await OtpSession.create({
+    phoneNumber: dto.phoneNumber,
+    hashedOtp,
+    role:        dto.role,
+    isUsed:      false,
+    attemptCount: 0,
+    expiresAt:   new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000),
+  });
+
+  // 5. Send SMS (stubbed in development)
+  await atClient.sendOtp(dto.phoneNumber, rawOtp);
+
+  logger.info(
+    `OTP requested | Phone: ${dto.phoneNumber} | Role: ${dto.role}`
+  );
+  // rawOtp goes out of scope here — never returned or stored in plaintext
+};
+
+/**
+ * Step 2 — Verify OTP and issue JWT.
+ *
+ * Validates the candidate OTP against the stored hash using
+ * timingSafeEqual. Issues access + refresh tokens on success.
+ */
+export const verifyOtp = async (
+  dto: VerifyOtpDto
+): Promise<AuthTokens> => {
+  // 1. Find the most recent active session for this phone
+  const session = await OtpSession.findOne({
+    phoneNumber: dto.phoneNumber,
+    isUsed:      false,
+    expiresAt:   { $gt: new Date() },
+  })
+    .select('+hashedOtp')
+    .sort({ createdAt: -1 })
+    .exec();
+
+  if (!session) {
+    throw new AppError(
+      'OTP has expired or does not exist. Please request a new code.',
+      401,
+      'OTP_EXPIRED'
+    );
+  }
+
+  // 2. Check attempt count before comparing (prevents timing oracle)
+  if (session.attemptCount >= MAX_OTP_ATTEMPTS) {
+    await OtpSession.findByIdAndUpdate(session._id, { isUsed: true });
+    throw new AppError(
+      'Too many incorrect attempts. Please request a new OTP.',
+      429,
+      'OTP_ATTEMPTS_EXCEEDED'
+    );
+  }
+
+  // 3. Hash candidate and compare using timingSafeEqual
+  const candidateHash = crypto
+    .createHash('sha256')
+    .update(dto.otp)
+    .digest('hex');
+
+  const candidateBuf = Buffer.from(candidateHash, 'hex');
+  const storedBuf    = Buffer.from(session.hashedOtp, 'hex');
+
+  const isValid =
+    candidateBuf.length === storedBuf.length &&
+    crypto.timingSafeEqual(candidateBuf, storedBuf);
+
+  if (!isValid) {
+    // Increment attempt count
+    await OtpSession.findByIdAndUpdate(session._id, {
+      $inc: { attemptCount: 1 },
+    });
+
+    const remaining = MAX_OTP_ATTEMPTS - (session.attemptCount + 1);
+    throw new AppError(
+      `Incorrect OTP. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+      401,
+      'OTP_INVALID'
+    );
+  }
+
+  // 4. Mark session as used (single-use enforcement)
+  await OtpSession.findByIdAndUpdate(session._id, { isUsed: true });
+
+  // 5. Fetch user and issue JWT tokens
+  const user = await User.findOne({ phoneNumber: dto.phoneNumber }).exec();
+
+  if (!user || !user.isActive) {
+    throw new AppError('Account not found or inactive.', 404, 'USER_NOT_FOUND');
+  }
+
+  const accessToken                  = generateAccessToken(user);
+  const { rawToken, hashedToken }    = generateRefreshToken();
+
+  user.refreshTokenHash = hashedToken;
+  user.lastLoginAt      = new Date();
+  await user.save();
+
+  logger.info(
+    `OTP verified — JWT issued | Phone: ${dto.phoneNumber} | Role: ${user.role}`
+  );
+
+  return { accessToken, refreshToken: rawToken };
 };

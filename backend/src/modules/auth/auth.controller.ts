@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import * as AuthService from './auth.service';
-import { sendSuccess } from '../../utils/apiResponse';
+import { sendSuccess, sendError } from '../../utils/apiResponse';
 import { env } from '../../config/env';
 import { User, UserRole } from '../../models/User.model';
 import { AppError } from '../../middleware/errorHandler.middleware';
+import { requestOtpSchema, verifyOtpSchema } from './auth.validation';
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -166,5 +167,100 @@ export const googleLogin = async (
     } else {
         next(err);
     }
+  }
+};
+/**
+ * POST /api/v1/auth/otp/request
+ *
+ * Step 1 of OTP login for operational users (Transporter, Farmer, Vendor).
+ * Validates phone + role, generates OTP, sends SMS via Africa's Talking.
+ *
+ * Always returns 200 to prevent phone number enumeration.
+ * The response message is intentionally identical whether the phone
+ * exists or not.
+ */
+export const requestOtpController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  // Validate request body
+  const parsed = requestOtpSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten()
+      .fieldErrors as Record<string, string[]>;
+    sendError(res, 422, 'Validation failed.', {
+      errors: fieldErrors,
+      code: 'VALIDATION_ERROR',
+    });
+    return;
+  }
+
+  try {
+    await AuthService.requestOtp(parsed.data);
+  } catch (err: any) {
+    // If the AppError has a 200 code (enumeration prevention),
+    // return 200 regardless — do not forward to error handler
+    if (err?.statusCode === 200) {
+      sendSuccess(
+        res,
+        200,
+        'If this number is registered, a verification code has been sent.',
+        null
+      );
+      return;
+    }
+    next(err);
+    return;
+  }
+
+  sendSuccess(
+    res,
+    200,
+    'Verification code sent. Please check your phone.',
+    null
+  );
+};
+
+/**
+ * POST /api/v1/auth/otp/verify
+ *
+ * Step 2 of OTP login. Verifies the 6-digit code and issues JWT tokens.
+ * Refresh token is set as an HttpOnly cookie (same pattern as password login).
+ */
+export const verifyOtpController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const parsed = verifyOtpSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten()
+      .fieldErrors as Record<string, string[]>;
+    sendError(res, 422, 'Validation failed.', {
+      errors: fieldErrors,
+      code: 'VALIDATION_ERROR',
+    });
+    return;
+  }
+
+  try {
+    const { accessToken, refreshToken } =
+      await AuthService.verifyOtp(parsed.data);
+
+    // Set refresh token as HttpOnly cookie (consistent with password login)
+    res.cookie('akripesa_refresh_token', refreshToken, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge:   7 * 24 * 60 * 60 * 1000,
+      path:     '/api/v1/auth/refresh',
+    });
+
+    sendSuccess(res, 200, 'Login successful.', { accessToken });
+  } catch (err) {
+    next(err);
   }
 };
